@@ -39,7 +39,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
@@ -49,7 +48,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.CenterAlignedTopAppBar
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -313,7 +311,7 @@ private fun HomeScreenWithList(
                 is HomeUiState.HasPosts -> false
                 is HomeUiState.NoPosts -> uiState.isLoading
             },
-            emptyContent = { FullScreenLoading() },
+            emptyContent = { ShimmerPostListPlaceholder() },
             loading = uiState.isLoading,
             onRefresh = onRefreshPosts,
             content = {
@@ -442,7 +440,16 @@ private fun LoadingContent(
             onRefresh = onRefresh,
             content = {
                 Box(Modifier.fillMaxSize().nestedScroll(guardConnection)) {
-                    content()
+                    Crossfade(
+                        targetState = loading,
+                        label = "loading_crossfade",
+                    ) { isLoading ->
+                        if (isLoading) {
+                            emptyContent()
+                        } else {
+                            content()
+                        }
+                    }
                 }
             },
             state = refreshState,
@@ -520,20 +527,6 @@ private fun PostList(
 }
 
 /**
- * Full screen circular progress indicator
- */
-@Composable
-private fun FullScreenLoading() {
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .wrapContentSize(Alignment.Center),
-    ) {
-        CircularProgressIndicator()
-    }
-}
-
-/**
  * Top section of [PostList]
  *
  * @param post (state) highlighted post to display
@@ -548,7 +541,9 @@ private fun PostListTopSection(post: Post, navigateToArticle: (String) -> Unit) 
     )
     PostCardTop(
         post = post,
-        modifier = Modifier.clickable(onClick = { navigateToArticle(post.id) }),
+        modifier = Modifier
+            .sharedPostBounds(post.id)
+            .clickable(onClick = { navigateToArticle(post.id) }),
     )
     PostListDivider()
 }
@@ -568,12 +563,14 @@ private fun PostListSimpleSection(
 ) {
     Column {
         posts.forEach { post ->
-            PostCardSimple(
-                post = post,
-                navigateToArticle = navigateToArticle,
-                isFavorite = favorites.contains(post.id),
-                onToggleFavorite = { onToggleFavorite(post.id) },
-            )
+            Box(modifier = Modifier.sharedPostBounds(post.id)) {
+                PostCardSimple(
+                    post = post,
+                    navigateToArticle = navigateToArticle,
+                    isFavorite = favorites.contains(post.id),
+                    onToggleFavorite = { onToggleFavorite(post.id) },
+                )
+            }
             PostListDivider()
         }
     }
@@ -601,10 +598,12 @@ private fun PostListPopularSection(posts: List<Post>, navigateToArticle: (String
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             for (post in posts) {
-                PostCardPopular(
-                    post,
-                    navigateToArticle,
-                )
+                Box(modifier = Modifier.sharedPostBounds(post.id)) {
+                    PostCardPopular(
+                        post,
+                        navigateToArticle,
+                    )
+                }
             }
         }
         Spacer(Modifier.height(16.dp))
@@ -622,7 +621,9 @@ private fun PostListPopularSection(posts: List<Post>, navigateToArticle: (String
 private fun PostListHistorySection(posts: List<Post>, navigateToArticle: (String) -> Unit) {
     Column {
         posts.forEach { post ->
-            PostCardHistory(post, navigateToArticle)
+            Box(modifier = Modifier.sharedPostBounds(post.id)) {
+                PostCardHistory(post, navigateToArticle)
+            }
             PostListDivider()
         }
     }
